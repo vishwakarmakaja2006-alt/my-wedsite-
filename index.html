@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cinematic Video Editor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; color: #333; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { text-align: center; color: #007bff; }
+        .upload-section { display: flex; flex-wrap: wrap; justify-content: space-around; margin: 20px 0; }
+        .upload-box { background: #fff; border: 2px dashed #007bff; padding: 20px; width: 45%; min-width: 300px; text-align: center; border-radius: 10px; margin: 10px; }
+        .upload-box input { margin-top: 10px; }
+        canvas { display: block; margin: 20px auto; border: 1px solid #ccc; max-width: 100%; height: auto; }
+        button { background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 10px; }
+        button:hover { background: #218838; }
+        .preview { text-align: center; margin: 20px 0; }
+        @media (max-width: 768px) { .upload-box { width: 100%; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Cinematic Video Editor</h1>
+        <p style="text-align: center;">Upload photos and a music track. The AI will automatically sync cinematic transitions and effects to the song's beats for a motivational vibe.</p>
+
+        <div class="upload-section">
+            <div class="upload-box">
+                <h3>Upload Photos</h3>
+                <p>Select multiple images for your video.</p>
+                <input type="file" id="photoInput" accept="image/*" multiple>
+            </div>
+            <div class="upload-box">
+                <h3>Upload Music Track</h3>
+                <p>Choose an audio file to sync with.</p>
+                <input type="file" id="musicInput" accept="audio/*">
+            </div>
+        </div>
+
+        <div class="preview">
+            <canvas id="canvas" width="800" height="450"></canvas>
+            <br>
+            <button id="generateBtn">Generate Cinematic Video</button>
+            <button id="exportBtn" style="display: none;">Export Video</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = new fabric.Canvas('canvas');
+        let photos = [];
+        let audioBuffer;
+        let player;
+
+        // Upload photos
+        document.getElementById('photoInput').addEventListener('change', (e) => {
+            photos = [];
+            Array.from(e.target.files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    fabric.Image.fromURL(reader.result, img => {
+                        img.scaleToWidth(canvas.width);
+                        photos.push(img);
+                    });
+                };
+                reader.readAsDataURL(file);
+            });
+        });
+
+        // Upload music
+        document.getElementById('musicInput').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const arrayBuffer = await file.arrayBuffer();
+                audioBuffer = await Tone.context.decodeAudioData(arrayBuffer);
+                player = new Tone.Player(audioBuffer).toDestination();
+            }
+        });
+
+        // Generate video (simulate syncing with beats)
+        document.getElementById('generateBtn').addEventListener('click', async () => {
+            if (photos.length === 0 || !audioBuffer) {
+                alert('Please upload photos and music first.');
+                return;
+            }
+
+            // Simple beat detection (placeholder; in real AI, use advanced analysis)
+            const duration = audioBuffer.duration;
+            const beats = Math.floor(duration / 2); // Assume 2-second intervals for demo
+            let currentIndex = 0;
+
+            canvas.clear();
+            canvas.add(photos[0]);
+
+            // Play music and sync transitions
+            player.start();
+            const interval = setInterval(() => {
+                currentIndex = (currentIndex + 1) % photos.length;
+                canvas.clear();
+                const img = photos[currentIndex];
+                // Add cinematic effect (e.g., fade in)
+                img.set({ opacity: 0 });
+                canvas.add(img);
+                img.animate('opacity', 1, { duration: 1000 });
+            }, (duration / beats) * 1000);
+
+            setTimeout(() => {
+                clearInterval(interval);
+                player.stop();
+                document.getElementById('exportBtn').style.display = 'inline';
+            }, duration * 1000);
+        });
+
+        // Export (basic canvas recording; for full video, integrate FFmpeg.wasm or API)
+        document.getElementById('exportBtn').addEventListener('click', () => {
+            const stream = canvas.getElement().captureStream(30); // 30 FPS
+            const recorder = new MediaRecorder(stream);
+            const chunks = [];
+
+            recorder.ondataavailable = e => chunks.push(e.data);
+            recorder.onstop = () => {
+                const blob = new Blob(chunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'cinematic-video.webm';
+                a.click();
+            };
+
+            recorder.start();
+            setTimeout(() => recorder.stop(), 5000); // Record for 5 seconds as demo
+        });
+    </script>
+</body>
+</html>
